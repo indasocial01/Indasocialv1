@@ -1,106 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Clock, Heart, MessageCircle, Eye, TrendingUp, Plus, Award, Lock, Trash2 } from 'lucide-react';
 import Header from '../components/Header';
 import WritePost from '../components/WritePost';
 import PostReader from '../components/PostReader';
 import { useAuth } from '../context/AuthContext';
-import { categories } from '../data/blogData';
-import { createClient } from '@/utils/supabase/client';
+import { categories, privateBlogPosts } from '../data/blogData';
 
 const Blog = ({ userType }) => {
   const { currentUser, unlockPost: unlockPostInAuth } = useAuth();
-  const supabase = createClient();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showWritePost, setShowWritePost] = useState(false);
-  const [posts, setPosts] = useState([]);
+  const [userPosts, setUserPosts] = useState([]);
   const [selectedPost, setSelectedPost] = useState(null);
   const [unlockedPosts, setUnlockedPosts] = useState(new Set());
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      let unlocked = [];
-
-      if (user) {
-        const { data: unlocksData } = await supabase.from('post_unlocks').select('post_id').eq('user_id', user.id);
-        unlocked = (unlocksData || []).map((item) => item.post_id);
-      }
-
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*')
-        .eq('status', 'published')
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        const formattedPosts = data.map((post) => ({
-          id: post.id,
-          title: post.title,
-          excerpt: post.excerpt || post.content?.slice(0, 140),
-          fullContent: post.content,
-          content: post.content,
-          author: post.author_id === user?.id ? 'You' : 'Community',
-          authorAvatar: '📝',
-          authorBio: 'Creator',
-          date: new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          category: 'community',
-          readTime: `${Math.max(1, Math.ceil((post.content?.split(/\s+/).length || 0) / 200))} min`,
-          gradient: 'from-cyan-500 to-blue-600',
-          imageUrl: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80',
-          views: 0,
-          likes: 0,
-          comments: 0,
-          rewards: 0,
-          featured: false,
-          requiresTokens: Boolean(post.is_premium),
-          unlockCost: post.token_cost || 0,
-          isUnlocked: !post.is_premium || unlocked.includes(post.id),
-          isUserPost: post.author_id === user?.id,
-          author_id: post.author_id,
-          isPremium: post.is_premium,
-        }));
-        setPosts(formattedPosts);
-        setUnlockedPosts(new Set(unlocked));
-      }
-
-      setLoading(false);
-    };
-
-    fetchPosts();
-  }, [supabase]);
-
-  const allPosts = posts.map((post) => ({
+  // Combinar posts del sistema con posts del usuario
+  const allPosts = [...userPosts, ...privateBlogPosts].map(post => ({
     ...post,
-    isUnlocked: !post.requiresTokens || unlockedPosts.has(post.id) || post.isUnlocked,
+    isUnlocked: post.requiresTokens ? unlockedPosts.has(post.id) || post.isUnlocked : true,
+    isUserPost: userPosts.some(up => up.id === post.id)
   }));
-
-  const filteredPosts = selectedCategory === 'all' ? allPosts : allPosts.filter((p) => p.category === selectedCategory);
-  const featuredPost = filteredPosts.find((p) => p.featured);
-  const regularPosts = filteredPosts.filter((p) => !p.featured);
+  
+  const filteredPosts = selectedCategory === 'all' ? allPosts : allPosts.filter(p => p.category === selectedCategory);
+  const featuredPost = filteredPosts.find(p => p.featured);
+  const regularPosts = filteredPosts.filter(p => !p.featured);
 
   const handlePostCreated = (newPost) => {
-    setPosts([newPost, ...posts]);
+    setUserPosts([newPost, ...userPosts]);
   };
 
-  const handleDeletePost = async (postId) => {
-    if (!window.confirm('¿Estás seguro de que quieres eliminar este post?')) return;
-
-    const { error } = await supabase.from('posts').delete().eq('id', postId);
-    if (!error) {
-      setPosts(posts.filter((p) => p.id !== postId));
+  const handleDeletePost = (postId) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este post?')) {
+      setUserPosts(userPosts.filter(p => p.id !== postId));
     }
   };
 
-  const handleUnlock = async (postId) => {
-    const post = allPosts.find((p) => p.id === postId);
+  const handleUnlock = (postId) => {
+    const post = allPosts.find(p => p.id === postId);
     if (post && post.requiresTokens && !unlockedPosts.has(postId)) {
-      const success = await unlockPostInAuth(postId, post.unlockCost);
+      const success = unlockPostInAuth(postId, post.unlockCost);
       if (success) {
-        const nextUnlocked = new Set(unlockedPosts);
-        nextUnlocked.add(postId);
-        setUnlockedPosts(nextUnlocked);
+        setUnlockedPosts(new Set([...unlockedPosts, postId]));
         setSelectedPost({ ...post, isUnlocked: true });
       }
     }

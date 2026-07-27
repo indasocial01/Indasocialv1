@@ -349,4 +349,5 @@ const ActiveCampaigns = ({ userType }) => {
     </div>
   );
 };
+
 export default ActiveCampaigns;

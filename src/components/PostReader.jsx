@@ -33,7 +33,7 @@ const PostReader = ({ post, isOpen, onClose, onUnlock }) => {
               <img 
                 src={post.imageUrl} 
                 alt={post.title}
-                className={`w-full h-full object-cover ${isLocked ? 'blur-sm' : ''}`}
+                className={`w-full h-full object-cover ${isLocked ? 'blur-[0.15px]' : ''}`}
               />
               {isLocked && (
                 <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/50 to-transparent flex items-center justify-center">

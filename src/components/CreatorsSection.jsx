@@ -16,39 +16,48 @@ const CreatorsSection = () => {
       id: 1,
       name: 'FORUM GLI LATAM',
       category: 'Sostenibilidad',
-      image: 'https://indasocial.com/INDA/wp-content/uploads/2025/06/04-2.png',
-      gradient: 'from-teal-500 to-emerald-600'
+      categoryId: 'sostenibilidad',
+      image: '/images/forum.png',
+      border: 'border-teal-500/80'
     },
     {
       id: 2,
       name: 'DECIDIDAS',
       category: 'Inclusión',
-      image: 'https://indasocial.com/INDA/wp-content/uploads/2026/03/88A1179.jpg',
-      gradient: 'from-purple-500 to-pink-600'
+      categoryId: 'inclusion',
+      image: '/images/decididas.jpg',
+      border: 'border-purple-500/80'
     },
     {
       id: 3,
       name: 'VOGUE LEADERS',
       category: 'Moda',
-      image: 'https://indasocial.com/INDA/wp-content/uploads/2025/09/31.png',
-      gradient: 'from-pink-500 to-rose-600',
+      categoryId: 'moda',
+      image: '/images/vogue.png',
+      border: 'border-pink-500/80',
       featured: true
     },
     {
       id: 4,
       name: 'ETHEREUM MÉXICO',
       category: 'Innovación',
-      image: 'https://indasocial.com/INDA/wp-content/uploads/2025/11/07.png',
-      gradient: 'from-cyan-500 to-blue-600'
+      categoryId: 'innovacion',
+      image: '/images/ethereum.png',
+      border: 'border-cyan-500/80'
     },
     {
       id: 5,
       name: 'MOLA REGIONAL',
       category: 'Sostenibilidad',
-      image: 'https://indasocial.com/INDA/wp-content/uploads/2019/09/69282101_974335122910260_1121046284560498688_o.jpg',
-      gradient: 'from-emerald-500 to-teal-600'
+      categoryId: 'sostenibilidad',
+      image: '/images/mola.jpg',
+      border: 'border-emerald-500/80'
     }
   ];
+
+  const filteredCreators = selectedCategory === 'all'
+    ? featuredCreators
+    : featuredCreators.filter((creator) => creator.categoryId === selectedCategory);
 
   return (
     <div id="features" className="py-20 px-6 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -85,7 +94,7 @@ const CreatorsSection = () => {
 
         {/* Featured Creators */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          {featuredCreators.map((creator) => (
+          {filteredCreators.map((creator) => (
             <div
               key={creator.id}
               className={`relative group cursor-pointer ${
@@ -95,14 +104,13 @@ const CreatorsSection = () => {
               <div
                 className={`relative rounded-2xl overflow-hidden ${
                   creator.featured ? 'h-80' : 'h-64'
-                } transition-transform group-hover:scale-105`}
+                } border-4 ${creator.border} transition-transform group-hover:scale-105`}
               >
                 <img
                   src={creator.image}
                   alt={creator.name}
                   className="w-full h-full object-cover"
                 />
-                <div className={`absolute inset-0 bg-gradient-to-t ${creator.gradient} opacity-60`}></div>
                 
                 <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
                   <h3 className="font-bold text-lg mb-1">{creator.name}</h3>

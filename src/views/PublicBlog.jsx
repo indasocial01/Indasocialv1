@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Clock, Heart, MessageCircle, Eye, TrendingUp, Lock, ChevronRight } from 'lucide-react';
 import PostReader from '../components/PostReader';
 import { categories, publicFreePosts, publicPremiumPosts } from '../data/blogData';
@@ -18,16 +19,16 @@ const PublicBlog = ({ onLoginClick }) => {
     return (
       <div 
         onClick={() => isLocked ? onLoginClick() : setSelectedPost(post)}
-        className="bg-slate-800/50 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden hover:border-cyan-500/50 transition-all group cursor-pointer"
+        className="bg-slate-900/80 border border-white/10 rounded-2xl overflow-hidden hover:border-cyan-500/50 transition-all group cursor-pointer"
       >
         {/* Image with Lock Badge */}
         <div className="relative h-64 overflow-hidden">
           <img 
             src={post.imageUrl} 
             alt={post.title}
-            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isLocked ? 'blur-sm' : ''}`}
+            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${isLocked ? 'blur-[5px]' : ''}`}
           />
-          <div className={`absolute inset-0 bg-gradient-to-t ${post.gradient} opacity-20 group-hover:opacity-30 transition-opacity`}></div>
+          <div className={`absolute inset-0 bg-gradient-to-t ${post.gradient} opacity-5 group-hover:opacity-10 transition-opacity`}></div>
           
           {isLocked && (
             <div className="absolute top-4 right-4 z-10 bg-cyan-500/90 backdrop-blur-sm px-3 py-2 rounded-full flex items-center gap-2">
@@ -100,7 +101,7 @@ const PublicBlog = ({ onLoginClick }) => {
             </div>
 
             <div className="hidden md:flex items-center gap-8">
-              <a href="/" className="text-gray-300 hover:text-white transition-colors">Home</a>
+              <Link href="/" className="text-gray-300 hover:text-white transition-colors">Home</Link>
               <a href="#blog" className="text-cyan-400 font-semibold">Blog</a>
               <a href="#community" className="text-gray-300 hover:text-white transition-colors">Community</a>
             </div>

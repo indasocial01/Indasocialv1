@@ -15,7 +15,7 @@ const InspiringCreators = () => {
       role: 'Reuniendo tradición y vanguardia en el corazón de Puebla.',
       category: 'Sostenibilidad',
       description: 'Un encuentro donde tradición y vanguardia se dieron la mano para mostrar que la cocina mexicana e iberoamericana no solo alimenta, sino que inspira y conecta culturas.',
-      image: 'https://indasocial.com/INDA/wp-content/uploads/2025/10/Captura-de-pantalla-2025-09-08-a-las-4.18.57%E2%80%AFp.m.png',
+      image: '/images/gastro.png',
       gradient: 'from-purple-600 to-blue-700'
     },
     {
@@ -24,7 +24,7 @@ const InspiringCreators = () => {
       role: 'Inteligencia Artificial, Inclusión y Comunidad.',
       category: 'Inclusión',
       description: 'AWS Community Day México 2025. Es un evento que conecta la comunidad con la innovación a nivel global.',
-      image: 'https://indasocial.com/INDA/wp-content/uploads/2025/07/9.png',
+      image: '/images/aws day.png',
       gradient: 'from-teal-600 to-cyan-700'
     },
     {
@@ -33,7 +33,7 @@ const InspiringCreators = () => {
       role: 'Diálogos sobre la autenticidad y el valor propio, en Soho House México.',
       category: 'Moda',
       description: 'Más que una simple revisión de tendencias, la jornada se transformó en un foro esencial para el diálogo.',
-      image: 'https://indasocial.com/INDA/wp-content/uploads/2025/10/05.png',
+      image: '/images/fashion.png',
       gradient: 'from-rose-600 to-pink-700'
     }
   ];

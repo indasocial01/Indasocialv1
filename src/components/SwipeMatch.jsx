@@ -225,4 +225,5 @@ const SwipeMatch = ({ userType, onMatch }) => {
     </div>
   );
 };
+
 export default SwipeMatch;

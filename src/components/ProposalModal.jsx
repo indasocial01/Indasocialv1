@@ -142,4 +142,5 @@ const ProposalModal = ({ isOpen, onClose, match, userType }) => {
     </div>
   );
 };
+
 export default ProposalModal;
