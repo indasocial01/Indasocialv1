@@ -22,8 +22,8 @@ const Sidebar = ({ currentPage, userType, onLogout }) => {
       icon: Users 
     },
     { id: 'learnearn', href: '/learnearn', label: 'Learn & Earn', icon: GraduationCap },
-    { id: 'chat', href: '/chat', label: 'MatchChat', icon: MessageCircle },
-    { id: 'community', href: '/community', label: 'Community', icon: Users },
+    // { id: 'chat', href: '/chat', label: 'MatchChat', icon: MessageCircle },
+    // { id: 'community', href: '/community', label: 'Community', icon: Users },
     { id: 'events', href: '/events', label: 'Eventos', icon: Calendar },
     { id: 'internal-blog', href: '/internal-blog', label: 'Blog', icon: BookOpen },
     { id: 'notifications', href: '/notifications', label: 'Notifications', icon: Bell },
