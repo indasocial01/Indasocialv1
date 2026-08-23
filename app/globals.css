@@ -50,6 +50,75 @@ body {
   animation: fadeIn 0.3s ease-out;
 }
 
+@keyframes bubble-rise {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--bubble-opacity, 0.5);
+  }
+  30% {
+    transform: translate(var(--drift, 14px), -35vh);
+  }
+  60% {
+    transform: translate(calc(var(--drift, 14px) * -1), -70vh);
+  }
+  88% {
+    opacity: var(--bubble-opacity, 0.5);
+  }
+  100% {
+    transform: translate(0, -115vh);
+    opacity: 0;
+  }
+}
+
+.animate-bubble-rise {
+  animation-name: bubble-rise;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: forwards;
+}
+
+.animate-bubble-loop {
+  animation-name: bubble-rise;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes card-reveal-loop {
+  0%,
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.animate-card-loop {
+  animation: card-reveal-loop 10s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: var(--twinkle-min, 0.15);
+    transform: scale(0.75);
+  }
+  50% {
+    opacity: var(--twinkle-max, 0.9);
+    transform: scale(1.2);
+  }
+}
+
+.animate-twinkle {
+  animation-name: twinkle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

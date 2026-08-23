@@ -69,7 +69,17 @@ const PostReader = ({ post, isOpen, onClose, onUnlock }) => {
             <div className="flex items-center gap-6 text-sm text-gray-400">
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-xl">
-                  {post.authorAvatar}
+                {post.authorAvatar?.includes('http') ? (
+                  <img 
+                    src={post.authorAvatar} 
+                    alt={post.author} 
+                    className="w-10 h-10 rounded-full object-cover border border-cyan-500/30"
+                  />
+                ) : (
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-lg text-white font-bold shadow-lg">
+                    {post.authorAvatar ? post.authorAvatar.charAt(0).toUpperCase() : '👤'}
+                  </div>
+                )}
                 </div>
                 <div>
                   <div className="text-white font-semibold">{post.author}</div>

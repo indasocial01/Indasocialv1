@@ -1,7 +1,29 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle, TrendingUp, Circle } from 'lucide-react';
 
 const RoadmapSection = () => {
+  const [visibleItems, setVisibleItems] = useState({});
+  const itemRefs = useRef([]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const idx = Number(entry.target.dataset.index);
+            setVisibleItems((prev) => ({ ...prev, [idx]: true }));
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: '0px 0px -10% 0px' }
+    );
+
+    itemRefs.current.forEach((el) => el && observer.observe(el));
+
+    return () => observer.disconnect();
+  }, []);
+
   const roadmapItems = [
     {
       year: '2025',
@@ -10,9 +32,8 @@ const RoadmapSection = () => {
         'Connecting communities on Web3',
         'Events and partnerships',
         'More sponsorships',
-        '#1 place ICP protocol via METAPOOL',
-        'Smart contract launch on ICP',
-        'IndaToken public on ICP'
+        '#1 place Solana protocol via METAPOOL',
+        'Smart contract launch on Solana',
       ],
       status: 'completed',
       color: 'green'
@@ -49,9 +70,7 @@ const RoadmapSection = () => {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
-          <div className="inline-block mb-4 px-4 py-2 bg-cyan-600/20 border border-cyan-500/30 rounded-full">
-            <span className="text-cyan-300 text-sm font-semibold">🗺️ Our Journey</span>
-          </div>
+      
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
             <span className="text-white">Project </span>
             <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
@@ -92,11 +111,16 @@ const RoadmapSection = () => {
                 {/* Content Card */}
                 <div className={`flex ${index % 2 === 0 ? 'justify-start' : 'justify-end'} mb-8`}>
                   <div className={`w-full md:w-5/12 ${index % 2 === 0 ? 'md:pr-20' : 'md:pl-20'}`}>
-                    <div className={`bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border-2 ${
+                    <div
+                      ref={(el) => (itemRefs.current[index] = el)}
+                      data-index={index}
+                      className={`bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border-2 ${
                       item.status === 'completed' ? 'border-green-500/30' :
                       item.status === 'in-progress' ? 'border-cyan-500/30' :
                       'border-purple-500/30'
-                    } hover:scale-105 transition-transform duration-300`}>
+                    } hover:scale-105 transition-all duration-700 ease-out ${
+                      visibleItems[index] ? 'opacity-100 translate-y-0 animate-card-loop' : 'opacity-0 translate-y-10'
+                    }`}>
                       {/* Year Badge */}
                       <div className={`inline-block px-4 py-1 rounded-full mb-4 font-bold text-white ${
                         item.status === 'completed' ? 'bg-green-500' :

@@ -1,10 +1,13 @@
+"use client";
 import React, { useState } from 'react';
-import { User, Briefcase, MessageCircle, Calendar, TrendingUp, ChevronRight, CheckCircle } from 'lucide-react';
+import { User, Briefcase, MessageCircle, Calendar, TrendingUp, ChevronRight, CheckCircle, X, FileText } from 'lucide-react';
 
 const Onboarding = ({ onComplete }) => {
   const [step, setStep] = useState(1);
   const [userType, setUserType] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Paso 1: El usuario selecciona su rol
   const handleSelect = (type) => {
@@ -14,8 +17,11 @@ const Onboarding = ({ onComplete }) => {
 
   // Paso 3: Finalizar y guardar en Supabase
   const handleFinish = async () => {
+    if (!acceptedTerms) {
+      alert("Debes aceptar los Términos y Condiciones y el Aviso de Privacidad para continuar.");
+      return;
+    }
     setIsSaving(true);
-    // Ejecuta la función que actualiza user_role y onboarding_complete en Supabase
     await onComplete(userType);
   };
 
@@ -36,16 +42,16 @@ const Onboarding = ({ onComplete }) => {
             {/* Creator Option */}
             <button
               onClick={() => handleSelect('creator')}
-              className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 border-2 border-purple-500/30 rounded-3xl p-8 hover:border-purple-500 hover:scale-105 transition-all group"
+              className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 border-2 border-purple-500/30 rounded-3xl p-8 hover:border-purple-500 hover:scale-105 transition-all group text-left"
             >
               <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
                 <User size={40} className="text-white" />
               </div>
-              <h2 className="text-3xl font-bold text-white mb-4">I'm a Creator</h2>
-              <p className="text-gray-400 mb-6">
+              <h2 className="text-3xl font-bold text-white mb-4 text-center">I'm a Creator</h2>
+              <p className="text-gray-400 mb-6 text-center">
                 Connect with brands, showcase your work, and monetize your influence
               </p>
-              <div className="space-y-2 text-left">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2 text-purple-400">
                   <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
                   <span className="text-sm">Find brand collaborations</span>
@@ -64,16 +70,16 @@ const Onboarding = ({ onComplete }) => {
             {/* Brand Option */}
             <button
               onClick={() => handleSelect('brand')}
-              className="bg-gradient-to-br from-cyan-900/30 to-blue-900/30 border-2 border-cyan-500/30 rounded-3xl p-8 hover:border-cyan-500 hover:scale-105 transition-all group"
+              className="bg-gradient-to-br from-cyan-900/30 to-blue-900/30 border-2 border-cyan-500/30 rounded-3xl p-8 hover:border-cyan-500 hover:scale-105 transition-all group text-left"
             >
               <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
                 <Briefcase size={40} className="text-white" />
               </div>
-              <h2 className="text-3xl font-bold text-white mb-4">I'm a Brand</h2>
-              <p className="text-gray-400 mb-6">
+              <h2 className="text-3xl font-bold text-white mb-4 text-center">I'm a Brand</h2>
+              <p className="text-gray-400 mb-6 text-center">
                 Discover creators, launch campaigns, and measure your ROI
               </p>
-              <div className="space-y-2 text-left">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2 text-cyan-400">
                   <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
                   <span className="text-sm">Find perfect creators</span>
@@ -161,7 +167,7 @@ const Onboarding = ({ onComplete }) => {
     );
   }
 
-  // Step 3: Final tips
+  // Step 3: Final tips & Terms acceptance
   if (step === 3) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
@@ -174,7 +180,7 @@ const Onboarding = ({ onComplete }) => {
             <p className="text-gray-400 text-lg">Quick tips to get started</p>
           </div>
 
-          <div className="bg-gray-900 border border-cyan-500/20 rounded-2xl p-8 mb-8">
+          <div className="bg-gray-900 border border-cyan-500/20 rounded-2xl p-8 mb-6">
             <div className="space-y-6">
               <div className="flex items-start gap-4">
                 <CheckCircle className="text-green-400 flex-shrink-0 mt-1" size={20} />
@@ -202,10 +208,32 @@ const Onboarding = ({ onComplete }) => {
             </div>
           </div>
 
+          {/* 🚀 Checkbox y Botón para abrir el Modal de Términos */}
+          <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-4 mb-6 flex items-center gap-3">
+            <input 
+              type="checkbox" 
+              id="terms"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="w-5 h-5 rounded accent-cyan-500 cursor-pointer"
+            />
+            <label htmlFor="terms" className="text-sm text-gray-300 select-none">
+              He leído y acepto los{' '}
+              <button 
+                type="button" 
+                onClick={() => setShowTermsModal(true)} 
+                className="text-cyan-400 underline hover:text-cyan-300 font-medium focus:outline-none"
+              >
+                Términos y Condiciones y el Aviso de Privacidad
+              </button>
+             .
+            </label>
+          </div>
+
           <button
             onClick={handleFinish}
-            disabled={isSaving}
-            className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            disabled={isSaving || !acceptedTerms}
+            className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
           >
             {isSaving ? (
               <>
@@ -220,6 +248,51 @@ const Onboarding = ({ onComplete }) => {
             )}
           </button>
         </div>
+
+        {/* 🚀 MODAL DE TÉRMINOS Y CONDICIONES */}
+        {showTermsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-gray-900 border border-cyan-500/30 rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+              
+              {/* Header del Modal */}
+              <div className="bg-gradient-to-r from-cyan-600 to-blue-600 p-6 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <FileText size={22} /> Aviso de Privacidad y Términos
+                </h3>
+                <button 
+                  onClick={() => setShowTermsModal(false)} 
+                  className="text-white hover:bg-white/20 rounded-xl p-2 transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Contenido del Aviso */}
+              <div className="p-6 space-y-4 overflow-y-auto text-gray-300 text-sm leading-relaxed">
+                <p>
+                  Al continuar, aceptas que tus datos serán utilizados para fines de matchmaking entre creadores y marcas dentro de la plataforma. Cualquier intento de contacto, negociación o transacción fuera de Indasocial para evadir este proceso será sancionado conforme a nuestros Términos y Condiciones. Las campañas efectuadas a través de la plataforma están sujetas a una comisión del 20%.
+                </p>
+                <p>
+                  Debes ser mayor de 18 años para crear una cuenta en Indasocial. Puedes solicitar la baja de tu cuenta y la eliminación de tus datos en cualquier momento desde tu perfil o escribiéndonos directamente. Tus datos son tratados conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares.
+                </p>
+              </div>
+
+              {/* Footer del Modal */}
+              <div className="p-4 border-t border-gray-800 bg-gray-950 flex justify-end">
+                <button 
+                  onClick={() => {
+                    setAcceptedTerms(true);
+                    setShowTermsModal(false);
+                  }}
+                  className="px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl hover:from-cyan-600 transition-all text-sm"
+                >
+                  Aceptar y Cerrar
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
       </div>
     );
   }

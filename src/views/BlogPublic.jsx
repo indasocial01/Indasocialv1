@@ -101,9 +101,12 @@ const PublicBlog = ({ onLoginClick }) => {
             </div>
 
             <div className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-gray-300 hover:text-white transition-colors">Home</Link>
-              <a href="#blog" className="text-cyan-400 font-semibold">Blog</a>
-              <a href="#community" className="text-gray-300 hover:text-white transition-colors">Community</a>
+              <Link href="/" className="text-gray-300 hover:text-white transition-colors cursor-pointer">Home</Link>
+              <Link href="/#token" className="text-gray-300 hover:text-white transition-colors cursor-pointer">Token</Link>
+              <Link href="/#roadmap" className="text-gray-300 hover:text-white transition-colors cursor-pointer">Roadmap</Link>
+              <Link href="/#community" className="text-gray-300 hover:text-white transition-colors cursor-pointer">Community</Link>
+              <Link href="/blog" className="text-cyan-400 font-semibold">Blog</Link>
+              <Link href="/#nosotros" className="text-gray-300 hover:text-white transition-colors cursor-pointer">Nosotros</Link>
             </div>
 
             <button

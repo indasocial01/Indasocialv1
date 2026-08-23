@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { Anton } from 'next/font/google';
+
+const anton = Anton({ subsets: ['latin'], weight: '400' });
 
 const CreatorsSection = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -62,16 +65,14 @@ const CreatorsSection = () => {
   return (
     <div id="features" className="py-20 px-6 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <div className="max-w-7xl mx-auto text-center">
-        <div className="inline-block mb-6 px-4 py-2 bg-purple-600/20 border border-purple-500/30 rounded-full">
-          <span className="text-purple-300 text-sm font-semibold">✨ Bienvenido a IndaSocial</span>
-        </div>
+     
         
-        <h2 className="text-6xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+        <h2 className={`${anton.className} text-6xl md:text-7xl mb-6 bg-gradient-to-r from-white to-pink-200 bg-clip-text text-transparent`}>
           Conecta
         </h2>
-        
-        <p className="text-2xl text-gray-300 mb-12 max-w-2xl mx-auto">
-          Donde creadores y marcas se encuentran
+
+        <p className={`${anton.className} text-2xl text-white-300 mb-12 max-w-2xl mx-auto`}>
+          4 industrias, un solo lugar
         </p>
 
         {/* Category Filters */}

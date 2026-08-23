@@ -9,9 +9,14 @@ const PublicBlog = ({ onLoginClick }) => {
   const [selectedPost, setSelectedPost] = useState(null);
 
   const allPosts = [...publicFreePosts, ...publicPremiumPosts];
-  const filteredPosts = selectedCategory === 'all' 
-    ? allPosts 
-    : allPosts.filter(p => p.category === selectedCategory);
+  const matchesCategory = (post) => selectedCategory === 'all' || post.categories?.includes(selectedCategory);
+  const filteredFreePosts = publicFreePosts.filter(matchesCategory);
+  const filteredPremiumPosts = publicPremiumPosts.filter(matchesCategory);
+
+  const categoryTabs = categories.map((cat) => ({
+    ...cat,
+    count: cat.id === 'all' ? allPosts.length : allPosts.filter((p) => p.categories?.includes(cat.id)).length,
+  }));
 
   const PostCard = ({ post }) => {
     const isLocked = post.requiresLogin;
@@ -92,18 +97,19 @@ const PublicBlog = ({ onLoginClick }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
-                </svg>
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center overflow-hidden">
+                <img src="/images/logoS.png" alt="Indasocial" className="w-11 h-11 object-contain" />
               </div>
               <span className="text-white font-bold text-xl">Indasocial</span>
             </div>
 
             <div className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-gray-300 hover:text-white transition-colors">Home</Link>
-              <a href="#blog" className="text-cyan-400 font-semibold">Blog</a>
-              <a href="#community" className="text-gray-300 hover:text-white transition-colors">Community</a>
+              <Link href="/" className="text-gray-300 hover:text-white transition-colors cursor-pointer">Home</Link>
+              <Link href="/#token" className="text-gray-300 hover:text-white transition-colors cursor-pointer">Token</Link>
+              <Link href="/#roadmap" className="text-gray-300 hover:text-white transition-colors cursor-pointer">Roadmap</Link>
+              <Link href="/#community" className="text-gray-300 hover:text-white transition-colors cursor-pointer">Community</Link>
+              <Link href="/blog" className="text-cyan-400 font-semibold">Blog</Link>
+              <Link href="/#nosotros" className="text-gray-300 hover:text-white transition-colors cursor-pointer">Nosotros</Link>
             </div>
 
             <button
@@ -134,7 +140,7 @@ const PublicBlog = ({ onLoginClick }) => {
       {/* Categories */}
       <div className="border-b border-white/10 bg-slate-900/50 backdrop-blur-sm sticky top-16 z-30">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-3 overflow-x-auto">
-          {categories.map((cat) => (
+          {categoryTabs.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
@@ -153,18 +159,22 @@ const PublicBlog = ({ onLoginClick }) => {
       {/* Free Content Section */}
       <div className="py-12 px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-2 mb-6">
-            <TrendingUp size={24} className="text-green-400" />
-            <h2 className="text-2xl font-bold text-white">Free Articles</h2>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-            {publicFreePosts.map(post => (
-              <PostCard key={post.id} post={post} />
-            ))}
-          </div>
+          {filteredFreePosts.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 mb-6">
+                <TrendingUp size={24} className="text-green-400" />
+                <h2 className="text-2xl font-bold text-white">Free Articles</h2>
+              </div>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+                {filteredFreePosts.map(post => (
+                  <PostCard key={post.id} post={post} />
+                ))}
+              </div>
+            </>
+          )}
 
           {/* Premium Content Section */}
-          {publicPremiumPosts.length > 0 && (
+          {filteredPremiumPosts.length > 0 && (
             <>
               <div className="flex items-center gap-2 mb-6">
                 <Lock size={24} className="text-cyan-400" />
@@ -172,11 +182,15 @@ const PublicBlog = ({ onLoginClick }) => {
                 <span className="text-sm text-gray-400">(Sign in required)</span>
               </div>
               <div className="grid md:grid-cols-2 gap-6">
-                {publicPremiumPosts.map(post => (
+                {filteredPremiumPosts.map(post => (
                   <PostCard key={post.id} post={post} />
                 ))}
               </div>
             </>
+          )}
+
+          {filteredFreePosts.length === 0 && filteredPremiumPosts.length === 0 && (
+            <p className="text-gray-400 text-center py-12">No hay artículos en esta categoría todavía.</p>
           )}
         </div>
       </div>
