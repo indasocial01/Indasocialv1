@@ -41,6 +41,8 @@ const ActiveCampaigns = ({ userType }) => {
           `)
           .eq('brand_id', user.id)
           .order('created_at', { ascending: false });
+        if (error) console.error("🚨 Error real de Supabase Prod:", error); 
+        
         if (campaigns) setData(campaigns);
       } else {
         const { data: assignments } = await supabase
