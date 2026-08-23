@@ -34,19 +34,39 @@ const ActiveCampaigns = ({ userType }) => {
           .from('campaigns')
           .select(`
             *,
-            proposals!proposals_campaign_id_fkey (
-              id, status, deliverable_url, creator_id, escrow_pubkey, budget,
-              creator:creator_id (full_name, phantom_address)
+            proposals (
+              id, status, deliverable_url, creator_id,
+              creator:profiles (full_name, phantom_address)
             )
           `)
           .eq('brand_id', user.id)
           .order('created_at', { ascending: false });
 
-        if (error) console.error("🚨 Error real de Supabase:", error);
+        if (error) {
+          console.error("🚨 Error real de Supabase:", JSON.stringify(error, null, 2));
+        }
+
         if (campaigns) setData(campaigns);
+      } else {
+        const { data: assignments, error } = await supabase
+          .from('proposals')
+          .select(`
+            *,
+            campaigns (*),
+            brand:profiles!proposals_brand_id_fkey (full_name, avatar_url)
+          `)
+          .eq('creator_id', user.id)
+          .in('status', ['pending', 'accepted', 'completed', 'paid'])
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error("🚨 Error real de Supabase (Creador):", JSON.stringify(error, null, 2));
+        }
+
+        if (assignments) setData(assignments);
       }
     } catch (err) {
-      console.error("Error crítico en el bloque try/catch:", err);
+      console.error("Error crítico:", err);
     } finally {
       setLoading(false);
     }
