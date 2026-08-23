@@ -30,22 +30,28 @@ const ActiveCampaigns = ({ userType }) => {
       setCurrentUserId(user.id);
 
       if (userType === 'brand') {
-        const { data: campaigns } = await supabase
+        // 🚀 CORRECCIÓN: Agregamos ', error' en la desestructuración
+        const { data: campaigns, error } = await supabase
           .from('campaigns')
           .select(`
             *,
             proposals (
-              id, status, deliverable_url, creator_id,
+              id, status, deliverable_url, creator_id, escrow_pubkey, budget,
               creator:creator_id (full_name, phantom_address)
             )
           `)
           .eq('brand_id', user.id)
           .order('created_at', { ascending: false });
-        if (error) console.error("🚨 Error real de Supabase Prod:", error); 
+        
+        // Ahora sí imprimirá el error de la base de datos sin colapsar
+        if (error) {
+          console.error("🚨 Error real de Supabase en Producción:", error);
+        }
         
         if (campaigns) setData(campaigns);
       } else {
-        const { data: assignments } = await supabase
+        // También lo corregimos para la vista del creador por si acaso
+        const { data: assignments, error } = await supabase
           .from('proposals')
           .select(`
             *,
@@ -53,12 +59,17 @@ const ActiveCampaigns = ({ userType }) => {
             brand:brand_id (full_name, avatar_url)
           `)
           .eq('creator_id', user.id)
-          .in('status', ['pending', 'accepted', 'completed', 'paid'])
+          .in('status', ['pending', 'accepted', 'funded', 'submitted', 'approved', 'paid'])
           .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error("🚨 Error real de Supabase en Producción (Creador):", error);
+        }
+
         if (assignments) setData(assignments);
       }
-    } catch (error) {
-      console.error("Error cargando campañas:", error);
+    } catch (err) {
+      console.error("Error crítico en el bloque try/catch:", err);
     } finally {
       setLoading(false);
     }
