@@ -30,43 +30,20 @@ const ActiveCampaigns = ({ userType }) => {
       setCurrentUserId(user.id);
 
       if (userType === 'brand') {
-        // 🚀 CORRECCIÓN: Agregamos ', error' en la desestructuración
         const { data: campaigns, error } = await supabase
           .from('campaigns')
           .select(`
             *,
-            proposals (
+            proposals!proposals_campaign_id_fkey (
               id, status, deliverable_url, creator_id, escrow_pubkey, budget,
               creator:creator_id (full_name, phantom_address)
             )
           `)
           .eq('brand_id', user.id)
           .order('created_at', { ascending: false });
-        
-        // Ahora sí imprimirá el error de la base de datos sin colapsar
-        if (error) {
-          console.error("🚨 Error real de Supabase en Producción:", error);
-        }
-        
+
+        if (error) console.error("🚨 Error real de Supabase:", error);
         if (campaigns) setData(campaigns);
-      } else {
-        // También lo corregimos para la vista del creador por si acaso
-        const { data: assignments, error } = await supabase
-          .from('proposals')
-          .select(`
-            *,
-            campaigns (*),
-            brand:brand_id (full_name, avatar_url)
-          `)
-          .eq('creator_id', user.id)
-          .in('status', ['pending', 'accepted', 'funded', 'submitted', 'approved', 'paid'])
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.error("🚨 Error real de Supabase en Producción (Creador):", error);
-        }
-
-        if (assignments) setData(assignments);
       }
     } catch (err) {
       console.error("Error crítico en el bloque try/catch:", err);
