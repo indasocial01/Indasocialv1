@@ -30,13 +30,14 @@ const ActiveCampaigns = ({ userType }) => {
       setCurrentUserId(user.id);
 
       if (userType === 'brand') {
+        // 🚀 ESPECIFICAMOS !proposals_creator_id_fkey PARA EL CREADOR
         const { data: campaigns, error } = await supabase
           .from('campaigns')
           .select(`
             *,
             proposals (
               id, status, deliverable_url, creator_id,
-              creator:profiles (full_name, phantom_address)
+              creator:profiles!proposals_creator_id_fkey (full_name, phantom_address)
             )
           `)
           .eq('brand_id', user.id)
@@ -48,6 +49,7 @@ const ActiveCampaigns = ({ userType }) => {
 
         if (campaigns) setData(campaigns);
       } else {
+        // 🚀 ESPECIFICAMOS !proposals_brand_id_fkey PARA LA MARCA
         const { data: assignments, error } = await supabase
           .from('proposals')
           .select(`
