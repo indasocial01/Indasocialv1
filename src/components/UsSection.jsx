@@ -6,8 +6,8 @@ const playfair = Playfair_Display({ subsets: ['latin'], weight: ['600', '700'] }
 const poppins = Poppins({ subsets: ['latin'], weight: ['700', '800'] });
 
 const teamAvatars = [
-  { id: 2, image: '/images/alan.jpeg', name: 'Alan Perez', social: '@alanperez_2', border: 'border-blue-500/70' },
   { id: 1, image: '/images/mir.jpg', name: 'Miriam', social: '@mileoon', border: 'border-purple-500/70' },
+  { id: 2, image: '/images/alan.jpeg', name: 'Alan Perez', social: '@alanperez_2', border: 'border-blue-500/70' },
   { id: 3, image: '/images/bee.jpeg', name: 'CowBee', social: '@leen_bee19', border: 'border-pink-500/70' },
   { id: 4, image: '/images/elvia.jpeg', name: 'Elvia', social: '@elvia_gomez', border: 'border-pink-500/70' },
 
