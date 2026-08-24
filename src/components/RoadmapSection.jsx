@@ -32,8 +32,6 @@ const RoadmapSection = () => {
         'Connecting communities on Web3',
         'Events and partnerships',
         'More sponsorships',
-        '#1 place Solana protocol via METAPOOL',
-        'Smart contract launch on Solana',
       ],
       status: 'completed',
       color: 'green'
