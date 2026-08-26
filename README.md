@@ -1,171 +1,170 @@
 ## IndaSocial
 
-IndaSocial es un marketplace Web3 que conecta marcas y creadores de contenido para descubrir oportunidades, colaborar en campañas y construir relaciones de largo plazo. La plataforma combina herramientas sociales, gestión de campañas, contenido educativo y recompensas con IndaToken.
+IndaSocial is a Web3 marketplace that connects brands and content creators to discover opportunities, collaborate on campaigns, and build long-term relationships. The platform combines social tools, campaign management, educational content, and rewards powered by IndaToken.
 
-Este repositorio contiene el prototipo funcional presentado para un hackathon.
+This repository contains the functional prototype presented for a hackathon.
 
-## Propuesta de valor
+## Value proposition
 
-- **Para creadores:** encontrar colaboraciones, mostrar su perfil, comunicarse con marcas y consultar sus ganancias y alcance.
-- **Para marcas:** descubrir creadores, publicar y gestionar campañas, recibir propuestas y seguir el rendimiento de sus acciones.
-- **Para la comunidad:** conectar mediante matching, chat, eventos, publicaciones y contenido Learn & Earn.
-- **Para el ecosistema Web3:** utilizar una wallet Phantom y tokens SPL en Solana Devnet para representar recompensas y pagos dentro del producto.
+- **For creators:** find collaborations, showcase their profile, communicate with brands, and track their earnings and reach.
+- **For brands:** discover creators, publish and manage campaigns, receive proposals, and monitor the performance of their actions.
+- **For the community:** connect through matching, chat, events, posts, and Learn & Earn content.
+- **For the Web3 ecosystem:** use a Phantom wallet and SPL tokens on Solana Devnet to represent rewards and payments within the product.
 
-## Funcionalidades principales
+## Core features
 
-### Acceso y perfiles
+### Access and profiles
 
-1. El usuario inicia sesión con Google mediante Supabase Auth.
-2. En el onboarding selecciona el rol **Creator** o **Brand**.
-3. El perfil se guarda en Supabase y el usuario accede a un dashboard adaptado a su rol.
-4. Desde Settings puede actualizar su información, avatar, wallet y preferencias.
+1. The user signs in with Google via Supabase Auth.
+2. During onboarding, they select the **Creator** or **Brand** role.
+3. The profile is saved in Supabase and the user accesses a dashboard tailored to their role.
+4. From Settings, they can update their information, avatar, wallet, and preferences.
 
-### Marketplace y colaboración
+### Marketplace and collaboration
 
-- Dashboard con campañas activas, propuestas y métricas.
-- Flujo de creación, revisión y seguimiento de campañas.
-- Matching tipo swipe entre marcas y creadores.
-- Chat privado para conversaciones después de un match.
-- Estados de propuesta como aceptada, completada y pagada.
+- Dashboard with active campaigns, proposals, and metrics.
+- Campaign creation, review, and tracking flow.
+- Swipe-style matching between brands and creators.
+- Private chat for conversations after a match.
+- Proposal statuses such as accepted, completed, and paid.
 
-### Comunidad y aprendizaje
+### Community and learning
 
-- Blog público e interno.
-- Publicaciones con contenido gratuito y premium.
-- Desbloqueo de contenido mediante una función RPC de Supabase.
-- Eventos y registro de asistentes.
-- Notificaciones y widget para enviar feedback.
+- Public and internal blog.
+- Posts with free and premium content.
+- Content unlocking via a Supabase RPC function.
+- Events and attendee registration.
+- Notifications and a feedback widget.
 
-### Integración Web3
+### Web3 integration
 
-- Conexión de wallet Phantom.
-- Consulta de saldo SOL en **Solana Devnet**.
-- Consulta y transferencia de IndaToken como token SPL.
-- Registro de la dirección de wallet en el perfil del usuario.
-- IDL y helper de Anchor preparados para operaciones de campañas escrow.
+- Phantom wallet connection.
+- SOL balance lookup on **Solana Devnet**.
+- IndaToken lookup and transfer as an SPL token.
+- Wallet address recorded on the user's profile.
+- Anchor IDL and helper prepared for escrow campaign operations.
 
-> El flujo visible de wallet y transferencias está conectado a Devnet. El helper de escrow (`utils/solanaEscrow.js`) y su IDL (`src/idl/inda_campaigns.json`) están incluidos como base de integración; no se debe interpretar que el programa Anchor está desplegado o conectado a todas las pantallas del prototipo.
+> The visible wallet and transfer flow is connected to Devnet. The escrow helper (`utils/solanaEscrow.js`) and its IDL (`src/idl/inda_campaigns.json`) are included as an integration foundation; this should not be interpreted as the Anchor program being deployed or connected to every screen of the prototype.
 
-## Stack tecnológico
+## Tech stack
 
-### Frontend y aplicación
+### Frontend and application
 
-- [Next.js](https://nextjs.org/) `16.2.10` con App Router.
+- [Next.js](https://nextjs.org/) `16.2.10` with App Router.
 - [React](https://react.dev/) `19.2.4`.
-- TypeScript para configuración y layout raíz; vistas y componentes principalmente en JSX.
-- Tailwind CSS `4` mediante PostCSS.
-- Lucide React para iconos.
+- TypeScript for configuration and the root layout; views and components mainly in JSX.
+- Tailwind CSS `4` via PostCSS.
+- Lucide React for icons.
 
-### Backend y autenticación
+### Backend and authentication
 
-- [Supabase](https://supabase.com/) para autenticación, base de datos, Storage y funciones RPC.
-- Supabase SSR para clientes de navegador y servidor.
-- Google OAuth como método de acceso.
+- [Supabase](https://supabase.com/) for authentication, database, Storage, and RPC functions.
+- Supabase SSR for browser and server clients.
+- Google OAuth as the sign-in method.
 
 ### Blockchain
 
 - Solana Devnet.
-- `@solana/web3.js` y `@solana/spl-token` para operaciones de wallet y tokens.
-- Anchor para la preparación del flujo de escrow.
-- Phantom como wallet compatible en el prototipo.
+- `@solana/web3.js` and `@solana/spl-token` for wallet and token operations.
+- Anchor for preparing the escrow flow.
+- Phantom as the compatible wallet in the prototype.
 
-### Calidad y tooling
+### Quality and tooling
 
-- ESLint `9` con `eslint-config-next`.
-- Node.js y npm.
-- `package-lock.json` para instalaciones reproducibles.
+- ESLint `9` with `eslint-config-next`.
+- Node.js and npm.
+- `package-lock.json` for reproducible installs.
 
-## Arquitectura del proyecto
+## Project architecture
 
 ```text
 app/
-	(public)/              Rutas públicas: landing, blog y login
-	(auth)/onboarding/     Configuración inicial del rol
-	(dashboard)/           Layout y rutas protegidas de la aplicación
-	auth/callback/         Callback de OAuth de Supabase
+	(public)/              Public routes: landing, blog, and login
+	(auth)/onboarding/     Initial role setup
+	(dashboard)/           Layout and protected app routes
+	auth/callback/         Supabase OAuth callback
 src/
-	components/            Componentes reutilizables de UI y flujos
-	context/               Estado global de autenticación y perfil
-	data/                  Datos de blog y datos mock del prototipo
-	idl/                   IDL del programa Anchor
-	views/                 Vistas principales de cada módulo
-utils/supabase/          Clientes Supabase para navegador y servidor
-utils/solanaEscrow.js    Helper de operaciones escrow con Anchor
-public/                  Imágenes, logos y recursos multimedia
+	components/            Reusable UI components and flows
+	context/               Global auth and profile state
+	data/                  Blog data and prototype mock data
+	idl/                   Anchor program IDL
+	views/                 Main views for each module
+utils/supabase/          Supabase clients for browser and server
+utils/solanaEscrow.js    Escrow operations helper with Anchor
+public/                  Images, logos, and media assets
 ```
 
-Las páginas de `app/` funcionan como puntos de entrada y renderizan vistas de `src/views`. El layout del dashboard controla la sesión y dirige al usuario al login o al onboarding cuando corresponde.
+Pages in `app/` act as entry points and render views from `src/views`. The dashboard layout controls the session and routes the user to login or onboarding as needed.
 
-## Rutas principales
+## Main routes
 
-| Ruta | Descripción |
+| Route | Description |
 | --- | --- |
-| `/` | Landing page y propuesta de IndaSocial |
-| `/blog` | Blog público |
-| `/login` | Inicio de sesión con Google |
-| `/onboarding` | Selección de rol y aceptación de términos |
-| `/dashboard` | Panel principal personalizado |
-| `/sales` | Campañas y actividad comercial |
-| `/connect` | Descubrimiento y conexión con perfiles |
-| `/chat` | Conversaciones entre matches |
-| `/community` | Espacio social de la comunidad |
-| `/events` | Eventos y registros |
-| `/internal-blog` | Contenido para usuarios autenticados |
-| `/learnearn` | Contenido educativo y recompensas |
-| `/notifications` | Notificaciones |
-| `/settings` | Perfil, preferencias y wallet |
+| `/` | Landing page and IndaSocial pitch |
+| `/blog` | Public blog |
+| `/login` | Google sign-in |
+| `/onboarding` | Role selection and terms acceptance |
+| `/dashboard` | Personalized main panel |
+| `/sales` | Campaigns and commercial activity |
+| `/connect` | Profile discovery and connection |
+| `/chat` | Conversations between matches |
+| `/community` | Community social space |
+| `/events` | Events and registrations |
+| `/internal-blog` | Content for authenticated users |
+| `/learnearn` | Educational content and rewards |
+| `/notifications` | Notifications |
+| `/settings` | Profile, preferences, and wallet |
 
-## Requisitos
+## Requirements
 
-- Node.js 20 o superior recomendado.
+- Node.js 20 or higher recommended.
 - npm.
-- Un proyecto de Supabase.
-- Google OAuth configurado en Supabase Auth.
-- Phantom instalado para probar las funciones Web3.
-- SOL e IndaToken de prueba en Solana Devnet para realizar transferencias.
+- A Supabase project.
+- Google OAuth configured in Supabase Auth.
+- Phantom installed to test the Web3 features.
+- Test SOL and IndaToken on Solana Devnet to perform transfers.
 
-## Instalación y ejecución
+## Installation and setup
 
 ```bash
 npm install
 ```
 
-Crea un archivo `.env.local` en la raíz del proyecto:
+Create a `.env.local` file at the project root:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=tu_url_de_supabase
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave_anonima_de_supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-Inicia el entorno de desarrollo:
+Start the development environment:
 
 ```bash
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000).
 
-
-## Scripts disponibles
+## Available scripts
 
 ```bash
-npm run dev      # Servidor local de desarrollo
-npm run lint     # Análisis estático con ESLint
-npm run build    # Compilación de producción
-npm start        # Servidor con la compilación generada
+npm run dev      # Local development server
+npm run lint     # Static analysis with ESLint
+npm run build    # Production build
+npm start        # Server running the generated build
 ```
 
-## Estado del prototipo y próximos pasos
+## Prototype status and next steps
 
-### Implementado en el repositorio
+### Implemented in the repository
 
-- Navegación pública y dashboard con rutas separadas.
-- Autenticación Google y persistencia de perfiles en Supabase.
-- Onboarding por rol.
-- Campañas, propuestas, matching, chat, blog, eventos y Learn & Earn.
-- Conexión de Phantom y operaciones de prueba sobre Solana Devnet.
-- Base de integración Anchor para campañas escrow.
+- Public navigation and dashboard with separate routes.
+- Google authentication and profile persistence in Supabase.
+- Role-based onboarding.
+- Campaigns, proposals, matching, chat, blog, events, and Learn & Earn.
+- Phantom connection and test operations on Solana Devnet.
+- Anchor integration foundation for escrow campaigns.
 
 First, run the development server:
 
