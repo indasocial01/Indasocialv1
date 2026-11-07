@@ -15,7 +15,9 @@ const ActiveCampaigns = ({ userType }) => {
 
   const [showCreate, setShowCreate] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [formData, setFormData] = useState({ title: '', description: '', budget: '' });
+  const emptyForm = { title: '', objective: '', description: '', deliverables: '', due_date: '', budget: '' };
+  const [formData, setFormData] = useState(emptyForm);
+  const [editingCampaignId, setEditingCampaignId] = useState(null);
 
   const [showDeliverable, setShowDeliverable] = useState(false);
   const [selectedProposalId, setSelectedProposalId] = useState(null);
@@ -30,8 +32,9 @@ const ActiveCampaigns = ({ userType }) => {
       setCurrentUserId(user.id);
 
       if (userType === 'brand') {
-        // 🚀 ESPECIFICAMOS !proposals_creator_id_fkey PARA EL CREADOR
-        const { data: campaigns, error } = await supabase
+        // En producción se conserva la relación con propuestas. En Dev todavía
+        // no existe la tabla proposals: usamos una consulta sencilla como respaldo.
+        let { data: campaigns, error } = await supabase
           .from('campaigns')
           .select(`
             *,
@@ -44,10 +47,17 @@ const ActiveCampaigns = ({ userType }) => {
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error("🚨 Error real de Supabase:", JSON.stringify(error, null, 2));
+          const result = await supabase
+            .from('campaigns')
+            .select('*')
+            .eq('brand_id', user.id)
+            .order('created_at', { ascending: false });
+          campaigns = result.data;
+          error = result.error;
         }
 
-        if (campaigns) setData(campaigns);
+        if (error) console.error('Error consultando campañas:', error);
+        setData(campaigns || []);
       } else {
         // 🚀 ESPECIFICAMOS !proposals_brand_id_fkey PARA LA MARCA
         const { data: assignments, error } = await supabase
@@ -78,28 +88,89 @@ const ActiveCampaigns = ({ userType }) => {
     fetchData();
   }, [userType]);
 
-  const handleCreateCampaign = async (e) => {
-    e.preventDefault();
-    if (!currentUserId) return;
+  const handleCreateCampaign = async (status) => {
+    if (!currentUserId || isSaving) return;
+
+    const title = formData.title.trim();
+    const description = formData.description.trim();
+    const objective = formData.objective.trim();
+    const deliverables = formData.deliverables.trim();
+    const budget = Number(formData.budget);
+
+    if (!title) {
+      alert('Escribe al menos un nombre para guardar el borrador.');
+      return;
+    }
+    if (status === 'active' && (!description || !objective || !deliverables || !Number.isInteger(budget) || budget <= 0)) {
+      alert('Para publicar agrega descripción, objetivo, entregables y un presupuesto positivo en MXN.');
+      return;
+    }
+    if (formData.budget !== '' && (!Number.isInteger(budget) || budget < 0)) {
+      alert('El presupuesto debe ser un número entero igual o mayor a cero.');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('campaigns')
-        .insert({
-          brand_id: currentUserId,
-          title: formData.title,
-          description: formData.description,
-          budget: Number(formData.budget) || 0
-        });
-
+      const campaignFields = {
+        title,
+        description: description || null,
+        objective: objective || null,
+        deliverables: deliverables || null,
+        due_date: formData.due_date || null,
+        budget: formData.budget === '' ? 0 : budget,
+        budget_currency: 'MXN',
+        status // draft = borrador; active = publicado dentro del entorno Dev
+      };
+      // La moneda es fija al crear y no se modifica al editar.
+      const editableFields = { ...campaignFields };
+      delete editableFields.budget_currency;
+      const query = editingCampaignId
+        ? supabase.from('campaigns')
+            .update({ ...editableFields, updated_at: new Date().toISOString() })
+            .eq('id', editingCampaignId)
+            .eq('brand_id', currentUserId)
+            .eq('status', 'draft')
+            .select('id')
+        : supabase.from('campaigns')
+            .insert({ brand_id: currentUserId, ...campaignFields })
+            .select('id');
+      const { data: saved, error } = await query;
       if (error) throw error;
-      await fetchData(); 
+      if (!saved?.length) throw new Error('La operación no guardó ninguna campaña.');
+      await fetchData();
       setShowCreate(false);
-      setFormData({ title: '', description: '', budget: '' });
-      alert('¡Campaña publicada exitosamente!');
+      setEditingCampaignId(null);
+      setFormData(emptyForm);
+      alert(status === 'draft' ? 'Borrador guardado.' : 'Campaña publicada en el entorno de desarrollo.');
     } catch (error) {
-      console.error("Error creando campaña:", error);
-      alert("Error al crear campaña: " + error.message);
+      console.error('Error creando campaña:', error);
+      alert('Error al guardar: ' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePublishDraft = async (campaign) => {
+    if (!currentUserId || isSaving) return;
+    if (!campaign.description || !campaign.objective || !campaign.deliverables || campaign.budget <= 0) {
+      alert('Este borrador necesita descripción, objetivo, entregables y presupuesto antes de publicarse.');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const { data: updated, error } = await supabase.from('campaigns')
+        .update({ status: 'active', updated_at: new Date().toISOString() })
+        .eq('id', campaign.id)
+        .eq('brand_id', currentUserId)
+        .eq('status', 'draft')
+        .select('id');
+      if (error) throw error;
+      if (!updated?.length) throw new Error('No se pudo publicar el borrador.');
+      await fetchData();
+    } catch (error) {
+      console.error('Error publicando borrador:', error);
+      alert('Error: ' + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -254,14 +325,14 @@ const ActiveCampaigns = ({ userType }) => {
     <div>
       {userType === 'brand' && (
         <div className="mb-6 flex justify-end">
-          <button onClick={() => setShowCreate(true)} className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-semibold hover:from-cyan-600 flex items-center gap-2"><Plus size={20} /> Publicar Campaña</button>
+          <button onClick={() => { setEditingCampaignId(null); setFormData(emptyForm); setShowCreate(true); }} className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-semibold hover:from-cyan-600 flex items-center gap-2"><Plus size={20} /> Nueva campaña</button>
         </div>
       )}
 
       {data.length === 0 ? (
         <div className="text-center py-12 bg-gray-900 rounded-2xl border border-cyan-500/20">
           <Briefcase size={48} className="text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400 text-lg">{userType === 'brand' ? 'No has publicado ninguna campaña aún' : 'No tienes campañas asignadas'}</p>
+          <p className="text-gray-400 text-lg">{userType === 'brand' ? 'No tienes campañas registradas aún' : 'No tienes campañas asignadas'}</p>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 gap-6">
@@ -271,17 +342,19 @@ const ActiveCampaigns = ({ userType }) => {
             const brandInfo = isBrand ? null : item.brand;
             
             const activeProposal = isBrand && item.proposals?.length > 0 ? item.proposals[0] : (!isBrand ? item : null);
-            const proposalStatus = activeProposal ? activeProposal.status : (isBrand ? 'draft' : item.status);
+            const proposalStatus = activeProposal ? activeProposal.status : (isBrand ? campaignData.status : item.status);
             const creatorInfo = activeProposal?.creator;
 
             return (
               <div key={item.id} className={`bg-gray-900 border ${proposalStatus === 'paid' ? 'border-green-500/50' : 'border-cyan-500/30'} rounded-2xl p-6 relative flex flex-col h-full hover:shadow-lg transition-all`}>
                 
-                <div className="absolute top-4 right-4 flex items-center gap-2">
-                  <span className="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 font-mono">
-                    <Cpu size={10} /> INDT Escrow
-                  </span>
-                </div>
+                {campaignData.budget_currency !== 'MXN' && (
+                  <div className="absolute top-4 right-4 flex items-center gap-2">
+                    <span className="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 font-mono">
+                      <Cpu size={10} /> INDT Escrow
+                    </span>
+                  </div>
+                )}
 
                 <div className={`mt-2 mb-3 inline-flex px-3 py-1 rounded-xl text-xs font-bold w-max items-center gap-1 ${
                   proposalStatus === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
@@ -292,14 +365,21 @@ const ActiveCampaigns = ({ userType }) => {
                   {proposalStatus === 'pending' ? 'Nueva Solicitud' :
                    proposalStatus === 'accepted' ? 'En Progreso' :
                    proposalStatus === 'completed' ? 'Entregado (Esperando Revisión)' :
-                   proposalStatus === 'paid' ? 'Finalizada y Pagada' : 'Publicada'}
+                   proposalStatus === 'paid' ? 'Finalizada y Pagada' :
+                   proposalStatus === 'draft' ? 'Borrador' :
+                   proposalStatus === 'active' ? 'Publicada' : 'Sin estado'}
                 </div>
 
                 <h3 className="text-xl font-bold text-white mb-2">{campaignData.title}</h3>
                 {!isBrand && brandInfo && <div className="flex items-center gap-2 mb-3"><div className="text-xs text-gray-400">Asignada por:</div><span className="text-cyan-400 text-sm font-semibold">{brandInfo.full_name}</span></div>}
                 <p className="text-gray-400 text-sm mb-4 line-clamp-3 flex-1">{campaignData.description}</p>
                 <div className="flex items-center gap-4 text-sm pt-4 border-t border-gray-800 mb-4">
-                  <div className="flex items-center gap-1 text-green-400 font-semibold"><DollarSign size={16} /> {campaignData.budget} INDT</div>
+                  <div className="flex items-center gap-1 text-green-400 font-semibold">
+                    <DollarSign size={16} />
+                    {campaignData.budget_currency === 'MXN'
+                      ? `${Number(campaignData.budget).toLocaleString('es-MX')} MXN`
+                      : `${campaignData.budget} INDT`}
+                  </div>
                 </div>
 
                 {/* VISTA DEL CREADOR */}
@@ -322,7 +402,28 @@ const ActiveCampaigns = ({ userType }) => {
                 {/* VISTA DE LA MARCA */}
                 {isBrand && (
                   <div className="mt-auto space-y-3">
-                    {proposalStatus === 'draft' && <p className="text-gray-500 text-sm text-center">Esperando propuestas de creadores...</p>}
+                    {campaignData.objective && <p className="text-sm text-gray-300"><strong>Objetivo:</strong> {campaignData.objective}</p>}
+                    {campaignData.deliverables && <p className="text-sm text-gray-300 whitespace-pre-line"><strong>Entregables:</strong> {campaignData.deliverables}</p>}
+                    {campaignData.due_date && <p className="text-sm text-gray-400"><strong>Fecha de entrega:</strong> {campaignData.due_date}</p>}
+                    {proposalStatus === 'draft' && (
+                      <>
+                        <p className="text-gray-400 text-sm">Borrador privado. No se ha publicado.</p>
+                        <button type="button" onClick={() => {
+                          setEditingCampaignId(campaignData.id);
+                          setFormData({
+                            title: campaignData.title || '',
+                            description: campaignData.description || '',
+                            objective: campaignData.objective || '',
+                            deliverables: campaignData.deliverables || '',
+                            due_date: campaignData.due_date || '',
+                            budget: String(campaignData.budget ?? '')
+                          });
+                          setShowCreate(true);
+                        }} className="w-full py-2.5 border border-gray-600 rounded-xl font-semibold">Editar borrador</button>
+                        <button type="button" disabled={isSaving} onClick={() => handlePublishDraft(campaignData)} className="w-full py-2.5 bg-cyan-700 rounded-xl font-semibold disabled:opacity-50">Publicar borrador</button>
+                      </>
+                    )}
+                    {proposalStatus === 'active' && <p className="text-cyan-400 text-sm">Publicada en Dev. Aún no es visible para otros usuarios hasta configurar sus permisos.</p>}
                     {proposalStatus === 'pending' && <p className="text-yellow-500 text-sm text-center">El Creador no ha aceptado aún...</p>}
                     {proposalStatus === 'accepted' && <p className="text-blue-400 text-sm text-center p-3 bg-blue-950/20 rounded-xl border border-blue-500/20">⏳ El Creador está trabajando en tu video...</p>}
                     
@@ -330,9 +431,13 @@ const ActiveCampaigns = ({ userType }) => {
                       <>
                         <a href={activeProposal.deliverable_url} target="_blank" rel="noreferrer" className="w-full py-2.5 bg-gray-800 text-cyan-400 rounded-xl font-semibold flex justify-center items-center gap-2 hover:bg-gray-700 transition-all border border-cyan-500/20"><LinkIcon size={16} /> 1. Ver Entregable del Creador</a>
 
-                        <button onClick={() => handleReleasePayment(activeProposal.id, creatorInfo?.phantom_address, campaignData.budget)} className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-bold hover:scale-[1.02] flex justify-center items-center gap-2 shadow-lg shadow-green-500/20 transition-all">
-                          <ShieldCheck size={18} /> 2. Aprobar y Pagar ({campaignData.budget} INDT)
-                        </button>
+                        {campaignData.budget_currency !== 'MXN' ? (
+                          <button onClick={() => handleReleasePayment(activeProposal.id, creatorInfo?.phantom_address, campaignData.budget)} className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-bold hover:scale-[1.02] flex justify-center items-center gap-2 shadow-lg shadow-green-500/20 transition-all">
+                            <ShieldCheck size={18} /> 2. Aprobar y Pagar ({campaignData.budget} INDT)
+                          </button>
+                        ) : (
+                          <p className="text-gray-400 text-sm">Pago en MXN pendiente de integración. No se realizará ninguna transferencia.</p>
+                        )}
                       </>
                     )}
 
@@ -346,17 +451,44 @@ const ActiveCampaigns = ({ userType }) => {
       )}
 
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-gray-900 border border-cyan-500/30 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl shadow-cyan-500/20">
-            <div className="bg-gradient-to-r from-cyan-600 to-blue-600 p-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2"><Briefcase size={24} /> Publicar Campaña</h2>
-              <button onClick={() => setShowCreate(false)} className="text-white hover:bg-white/20 rounded-lg p-2"><X size={20}/></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-cyan-500/30 rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="bg-gradient-to-r from-cyan-600 to-blue-600 p-5 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2"><Briefcase size={24} /> {editingCampaignId ? 'Editar borrador' : 'Nueva campaña'}</h2>
+              <button type="button" onClick={() => setShowCreate(false)} aria-label="Cerrar formulario" className="text-white hover:bg-white/20 rounded-lg p-2"><X size={20}/></button>
             </div>
-            <form onSubmit={handleCreateCampaign} className="p-6 space-y-4">
-              <div><label className="block text-sm text-gray-400 mb-1">Nombre</label><input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white" /></div>
-              <div><label className="block text-sm text-gray-400 mb-1">Descripción</label><textarea required rows={4} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white resize-none" /></div>
-              <div><label className="block text-sm text-gray-400 mb-1">Presupuesto (INDT)</label><input required type="number" value={formData.budget} onChange={e => setFormData({...formData, budget: e.target.value})} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white" /></div>
-              <button type="submit" disabled={isSaving} className="w-full mt-4 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl">{isSaving ? 'Guardando...' : 'Publicar'}</button>
+            <form onSubmit={e => { e.preventDefault(); handleCreateCampaign('active'); }} className="p-6 space-y-4">
+              <div>
+                <label htmlFor="campaign-title" className="block text-sm text-gray-400 mb-1">Nombre de campaña *</label>
+                <input id="campaign-title" required type="text" maxLength={150} value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white" />
+              </div>
+              <div>
+                <label htmlFor="campaign-objective" className="block text-sm text-gray-400 mb-1">Objetivo</label>
+                <textarea id="campaign-objective" rows={2} value={formData.objective} onChange={e => setFormData({ ...formData, objective: e.target.value })} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white resize-y" placeholder="Ej. dar a conocer nuestra aplicación" />
+              </div>
+              <div>
+                <label htmlFor="campaign-description" className="block text-sm text-gray-400 mb-1">Descripción / brief</label>
+                <textarea id="campaign-description" rows={3} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white resize-y" />
+              </div>
+              <div>
+                <label htmlFor="campaign-deliverables" className="block text-sm text-gray-400 mb-1">Entregables solicitados</label>
+                <textarea id="campaign-deliverables" rows={2} value={formData.deliverables} onChange={e => setFormData({ ...formData, deliverables: e.target.value })} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white resize-y" placeholder="Ej. un reel y dos historias" />
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="campaign-budget" className="block text-sm text-gray-400 mb-1">Presupuesto (MXN)</label>
+                  <input id="campaign-budget" type="number" min="0" step="1" value={formData.budget} onChange={e => setFormData({ ...formData, budget: e.target.value })} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white" />
+                </div>
+                <div>
+                  <label htmlFor="campaign-date" className="block text-sm text-gray-400 mb-1">Fecha de entrega</label>
+                  <input id="campaign-date" type="date" value={formData.due_date} onChange={e => setFormData({ ...formData, due_date: e.target.value })} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white" />
+                </div>
+              </div>
+              <p className="text-xs text-gray-400">El borrador solo exige nombre. Para publicar se requieren objetivo, descripción, entregables y presupuesto positivo. No se procesan pagos aquí.</p>
+              <div className="grid sm:grid-cols-2 gap-3 pt-2">
+                <button type="button" disabled={isSaving} onClick={() => handleCreateCampaign('draft')} className="py-3 border border-gray-600 rounded-xl font-semibold text-white disabled:opacity-50">Guardar borrador</button>
+                <button type="submit" disabled={isSaving} className="py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl disabled:opacity-50">{isSaving ? 'Guardando...' : 'Publicar en Dev'}</button>
+              </div>
             </form>
           </div>
         </div>
