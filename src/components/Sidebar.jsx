@@ -1,12 +1,14 @@
 "use client";
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { 
   Home, DollarSign, Users, MessageCircle, Calendar, 
-  BookOpen, Bell, Settings, LogOut, Target, GraduationCap 
+  BookOpen, Bell, Settings, LogOut, Target, GraduationCap, FileText 
 } from 'lucide-react';
 
 const Sidebar = ({ currentPage, userType, onLogout }) => {
+  const pathname = usePathname();
   const menuItems = [
     { id: 'dashboard', href: '/dashboard', label: 'Dashboard', icon: Home },
     { 
@@ -15,6 +17,13 @@ const Sidebar = ({ currentPage, userType, onLogout }) => {
       label: userType === 'creator' ? 'Sales' : 'Campaigns', 
       icon: userType === 'creator' ? DollarSign : Target 
     },
+    ...(userType === 'brand' ? [
+      {
+        id: 'campaigns-draft',
+        href: '/campaigns-draft',
+        label: 'Gestión de campañas',
+        icon: FileText
+      }] : []),
     { 
       id: 'connect', 
       href: '/connect',
@@ -46,7 +55,7 @@ const Sidebar = ({ currentPage, userType, onLogout }) => {
       <nav className="space-y-2 flex-1 overflow-y-auto pr-2">
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = currentPage === item.id;
+          const isActive = currentPage === item.id || pathname === item.href;
           
           return (
             <Link
