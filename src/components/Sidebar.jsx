@@ -24,6 +24,14 @@ const Sidebar = ({ currentPage, userType, onLogout }) => {
         label: 'Gestión de campañas',
         icon: FileText
       }] : []),
+    ...(userType === 'creator' ? [
+      {
+        id: 'creator-draft',
+        href: '/creator-draft',
+        label: 'Mis colaboraciones',
+        icon: FileText
+      }
+    ] : []),  
     { 
       id: 'connect', 
       href: '/connect',
