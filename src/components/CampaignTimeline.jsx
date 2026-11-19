@@ -1,195 +1,179 @@
 "use client";
 
-const etapas = [
-  { id: "accepted", nombre: "ACEPTADA" },
- // { id: "funded", nombre: "FONDOS CONFIRMADOS" },
-  { id: "in_progress", nombre: "EN PROCESO" },
-  { id: "delivered", nombre: "ENTREGADA" },
-  { id: "approved", nombre: "APROBADA" },
- // { id: "paid_out", nombre: "PAGO AL CREADOR" },
-];
+import { useEffect, useState } from "react";
+import { useAuth } from "@/src/context/AuthContext";
+import { createClient } from "@/utils/supabase/client";
+import CampaignTimeline from "@/src/components/CampaignTimeline";
 
-const estadosCampana = {
-  draft: "Borrador",
-  active: "Publicada",
-  completed: "Finalizada",
-  cancelled: "Cancelada",
-};
+const formatoMXN = (valor) =>
+  Number(valor || 0).toLocaleString("es-MX", {
+    style: "currency",
+    currency: "MXN",
+  });
 
-const temas = {
-  brand: {
-    fondo: "bg-[#111126]",
-    borde: "border-[#34304f]",
-    titulo: "text-purple-400",
-    etiqueta: "border-purple-500/40 bg-purple-500/20 text-purple-200",
-    actual: "border-purple-400 bg-[#523b88]",
-    siguiente: "border-purple-500/70 bg-purple-500/15",
-    aviso: "border-purple-500/30 bg-purple-500/10",
-    avisoTexto: "text-purple-300",
-  },
-  creator: {
-    fondo: "bg-[#101e35]",
-    borde: "border-sky-500/30",
-    titulo: "text-sky-400",
-    etiqueta: "border-sky-500/40 bg-sky-500/15 text-sky-200",
-    actual: "border-sky-400 bg-sky-700/60",
-    siguiente: "border-sky-500/70 bg-sky-500/15",
-    aviso: "border-sky-500/30 bg-sky-500/10",
-    avisoTexto: "text-sky-300",
-  },
-};
+export default function CampaignsDraftPage() {
+  const { currentUser } = useAuth();
+  const [supabase] = useState(() => createClient());
+  const [campanas, setCampanas] = useState([]);
+  const [propuestas, setPropuestas] = useState([]);
+  const [seleccionada, setSeleccionada] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
 
-export default function CampaignTimeline({
-  status = "draft",
-  deliverables = "",
-  collaborationStatus = null,
-  variant = "brand",
-}) {
-  const tema = temas[variant] || temas.brand;
+  useEffect(() => {
+    if (!currentUser?.id || currentUser.type !== "brand") return;
 
-  const etapaActual = etapas.findIndex(
-    (etapa) => etapa.id === collaborationStatus
-  );
+    let activa = true;
+    async function cargarCampanas() {
+      setCargando(true);
+      setError("");
 
-  const siguienteEtapa =
-    etapaActual >= 0 && etapaActual < etapas.length - 1
-      ? etapas[etapaActual + 1]
-      : null;
+      const { data, error: errorCampanas } = await supabase
+        .from("campaigns")
+        .select("id, title, description, objective, deliverables, budget, due_date, status")
+        .eq("brand_id", currentUser.id)
+        .order("created_at", { ascending: false });
 
-  let mensaje = "";
+      if (!activa) return;
+      if (errorCampanas) {
+        setError(errorCampanas.message);
+        setCargando(false);
+        return;
+      }
 
-  if (status === "cancelled") {
-    mensaje = "La campaña fue cancelada.";
-  } else if (collaborationStatus === "pending") {
-    mensaje = "Invitación enviada. Falta que el creador responda.";
-  } else if (collaborationStatus === "accepted") {
-    mensaje =
-      "Colaboración aceptada. Pendiente de documentación y siguientes pasos";
-  } else if (collaborationStatus === "funded") {
-    mensaje =
-      "Fondos confirmados. La colaboración puede comenzar.";
-  } else if (collaborationStatus === "paid_out") {
-    mensaje = "La colaboración terminó y se registró el pago al creador.";
-  } else if (siguienteEtapa) {
-    mensaje = `Siguiente etapa: ${siguienteEtapa.nombre}`;
-  } else if (status === "draft") {
-    mensaje = "La campaña está en borrador. Falta publicarla.";
-  } else {
-    mensaje =
-      "Campaña publicada. Pendiente de una colaboración aceptada.";
+      const lista = data || [];
+      setCampanas(lista);
+      setSeleccionada(lista[0]?.id || null);
+
+      if (lista.length === 0) {
+        setPropuestas([]);
+        setCargando(false);
+        return;
+      }
+
+      // Las propuestas son la fuente de verdad de la aceptación del creador.
+      const { data: propuestasData, error: errorPropuestas } = await supabase
+        .from("proposals")
+        .select("id, campaign_id, creator_id, status, created_at")
+        .eq("brand_id", currentUser.id)
+        .in("campaign_id", lista.map((c) => c.id))
+        .order("created_at", { ascending: false });
+
+      if (!activa) return;
+      if (errorPropuestas) {
+        setError(`No se pudieron consultar las colaboraciones: ${errorPropuestas.message}`);
+      } else {
+        setPropuestas(propuestasData || []);
+      }
+      setCargando(false);
+    }
+
+    cargarCampanas();
+    return () => {
+      activa = false;
+    };
+  }, [currentUser?.id, currentUser?.type, supabase]);
+
+  if (currentUser?.type !== "brand") {
+    return (
+      <main className="flex-1 p-8 text-white">
+        Esta vista corresponde a las marcas.
+      </main>
+    );
   }
 
-  const etiqueta =
-    etapaActual >= 0
-      ? etapas[etapaActual].nombre
-      : collaborationStatus === "pending"
-      ? "Invitación pendiente"
-      : estadosCampana[status] || "Sin estado";
+  const campana = campanas.find((c) => c.id === seleccionada);
+  const propuestasCampana = propuestas.filter((p) => p.campaign_id === seleccionada);
+  const estadoColaboracion =
+    propuestasCampana.find((p) => p.status === "accepted")?.status ||
+    propuestasCampana.find((p) => ["in_progress", "delivered", "approved"].includes(p.status))?.status ||
+    propuestasCampana.find((p) => p.status === "pending")?.status ||
+    propuestasCampana.find((p) => p.status === "completed")?.status ||
+    null;
 
   return (
-    <section
-      className={`rounded-2xl border p-5 md:p-6 ${tema.fondo} ${tema.borde}`}
-    >
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p
-            className={`text-xs font-bold uppercase tracking-widest ${tema.titulo}`}
-          >
-            Seguimiento
-          </p>
-
-          <h2 className="mt-1 text-xl font-bold text-white">
-            Estado de la colaboración
-          </h2>
-        </div>
-
-        <span
-          className={`rounded-full border px-4 py-2 text-sm font-semibold ${tema.etiqueta}`}
-        >
-          {etiqueta}
-        </span>
-      </div>
-
-      {/* TIMELINE HORIZONTAL */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-        {etapas.map((etapa, index) => {
-          const completada = etapaActual > index;
-          const actual = etapaActual === index;
-          const proxima =
-            etapaActual >= 0 && etapaActual + 1 === index;
-
-          let estilo = "border-[#37354e] bg-[#18182c]";
-
-          if (completada) {
-            estilo = "border-emerald-500/50 bg-emerald-500/10";
-          } else if (actual) {
-            estilo = tema.actual;
-          } else if (proxima) {
-            estilo = tema.siguiente;
-          }
-
-          return (
-            <div
-              key={etapa.id}
-              className={`flex min-h-[82px] flex-col items-center justify-center rounded-xl border px-2 py-3 text-center ${estilo}`}
-            >
-              <span
-                className={`text-lg font-bold ${
-                  completada
-                    ? "text-emerald-400"
-                    : actual || proxima
-                    ? "text-white"
-                    : "text-gray-500"
-                }`}
-              >
-                {completada ? "✓" : index + 1}
-              </span>
-
-              <span
-                className={`mt-1 text-[10px] font-bold leading-tight sm:text-xs ${
-                  actual || proxima
-                    ? "text-white"
-                    : completada
-                    ? "text-emerald-300"
-                    : "text-gray-400"
-                }`}
-              >
-                {etapa.nombre}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* PRÓXIMO PASO */}
-      <div
-        className={`mt-5 rounded-xl border p-4 ${tema.aviso}`}
-      >
-        <p
-          className={`mb-1 text-xs font-bold uppercase tracking-wide ${tema.avisoTexto}`}
-        >
-          Estado actual y próximo paso
+    <main className="min-w-0 flex-1 bg-[#0b0b16] p-5 text-white md:p-8">
+      <header className="mb-8">
+        <p className="text-sm font-semibold text-purple-400">INDASOCIAL</p>
+        <h1 className="mt-2 text-3xl font-bold">Gestión de campañas</h1>
+        <p className="mt-2 text-gray-400">
+          Consulta tus campañas, entregables y progreso.
         </p>
+      </header>
 
-        <p className="text-sm leading-relaxed text-gray-200">
-          {mensaje}
-        </p>
-      </div>
+      {cargando && <p>Cargando campañas...</p>}
+      {error && <p className="mb-4 text-red-400">Error: {error}</p>}
+      {!cargando && campanas.length === 0 && !error && (
+        <p>No tienes campañas registradas.</p>
+      )}
 
-      {/* ENTREGABLES */}
-      <div className={`mt-6 border-t pt-5 ${tema.borde}`}>
-        <h3 className="mb-3 text-base font-bold text-white">
-          Entregables
-        </h3>
+      {!cargando && campanas.length > 0 && (
+        <div className="space-y-6">
+          {campana && (
+            <CampaignTimeline
+              variant="brand"
+              status={campana.status}
+              collaborationStatus={estadoColaboracion}
+              deliverables={campana.deliverables}
+            />
+          )}
 
-        <div
-          className={`rounded-xl border bg-[#18182c] p-4 ${tema.borde}`}
-        >
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-300">
-            {deliverables || "Sin entregables registrados."}
-          </p>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <section className="space-y-3">
+              <h2 className="text-xl font-semibold">Mis campañas</h2>
+              {campanas.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSeleccionada(c.id)}
+                  className={`w-full rounded-xl border p-4 text-left ${
+                    seleccionada === c.id
+                      ? "border-purple-500 bg-purple-950/40"
+                      : "border-gray-700 bg-[#151526]"
+                  }`}
+                >
+                  <p className="font-semibold">{c.title}</p>
+                  <p className="mt-2 text-sm text-gray-400">{formatoMXN(c.budget)}</p>
+                  {propuestas.some((p) => p.campaign_id === c.id && p.status === "accepted") && (
+                    <p className="mt-2 text-xs text-emerald-300">Colaboración aceptada</p>
+                  )}
+                </button>
+              ))}
+            </section>
+
+            <section className="rounded-2xl border border-[#34304f] bg-[#151526] p-6 lg:col-span-2">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-purple-400">
+                Detalle de campaña
+              </p>
+              <h2 className="mb-3 text-2xl font-bold">{campana?.title}</h2>
+              {campana?.objective && (
+                <div className="mb-5">
+                  <p className="mb-2 text-sm text-gray-400">Objetivo</p>
+                  <p className="whitespace-pre-wrap text-gray-200">{campana.objective}</p>
+                </div>
+              )}
+              <p className="mb-2 text-sm text-gray-400">Brief</p>
+              <p className="mb-6 whitespace-pre-wrap text-gray-200">
+                {campana?.description || "Sin brief registrado."}
+              </p>
+              <div className="border-t border-[#34304f] pt-5">
+                <p className="text-sm text-gray-400">Presupuesto</p>
+                <p className="mt-1 text-2xl font-bold">{formatoMXN(campana?.budget)}</p>
+                <p className="mt-4 text-sm text-gray-400">
+                  Estado de campaña: {campana?.status || "Sin estado"}
+                </p>
+                <p className="mt-2 text-sm text-purple-200">
+                  {estadoColaboracion === "accepted"
+                    ? "El creador aceptó esta colaboración."
+                    : estadoColaboracion === "pending"
+                      ? "Invitación enviada; esperando respuesta del creador."
+                      : "Sin colaboración aceptada por el momento."}
+                </p>
+              </div>
+            </section>
+          </div>
         </div>
-      </div>
-    </section>
+      )}
+    </main>
   );
 }
