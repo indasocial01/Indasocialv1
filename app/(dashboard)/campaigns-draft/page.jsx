@@ -33,7 +33,7 @@ export default function CampaignsDraftPage() {
       const { data, error } = await supabase
         .from("campaigns")
         .select(
-          "id, title, description, budget, status, deliverables"
+          "id, title, description, budget, status, deliverables, proposals(status)"
         )
         .eq("brand_id", currentUser.id)
         .order("created_at", { ascending: false });
@@ -103,6 +103,13 @@ export default function CampaignsDraftPage() {
               <CampaignTimeline
                 status={campana.status}
                 deliverables={campana.deliverables}
+                collaborationStatus={
+                  campana.proposals?.some(
+                    (p) => p.status === "accepted"
+                  )
+                    ? "accepted"
+                    : null
+                }
               />
             )}
 
