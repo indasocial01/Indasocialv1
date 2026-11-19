@@ -1,10 +1,10 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/src/context/AuthContext";
 import { createClient } from "@/utils/supabase/client";
+import CampaignTimeline from "@/src/components/CampaignTimeline";
 
 const formatoMXN = (valor) =>
   Number(valor || 0).toLocaleString("es-MX", {
