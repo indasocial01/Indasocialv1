@@ -474,19 +474,15 @@ export default function CreatorDraftPage() {
 
             {/* COLABORACIÓN ACEPTADA */}
             {campana?.proposalStatus === "accepted" && (
-              <div className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5">
-                <p className="font-semibold text-emerald-300">
-                  Colaboración aceptada
-                </p>
-
-                <p className="mt-2 text-sm text-gray-300">
-                  Ya formas parte de esta campaña.
-                  El seguimiento de etapas y los archivos
-                  de la colaboración estarán disponibles
-                  en esta sección.
-                </p>
-              </div>
-            )}
+                <div className="mt-6">
+                    <CampaignTimeline
+                    status={campana.status}
+                    deliverables={campana.deliverables}
+                    collaborationStatus={campana.proposalStatus}
+                    variant="creator"
+                    />
+                </div>
+                )}
 
             {/* FINALIZADA */}
             {campana?.proposalStatus === "completed" && (
