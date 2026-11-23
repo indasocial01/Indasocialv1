@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useId, useRef } from 'react';
 import { X, Send, FileText, MessageCircle } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { hasRestrictedChatContent } from './chatModeration';
@@ -17,11 +17,12 @@ function MatchChat({ onClose, match, userType, onSendProposal }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [session, setSession] = useState(null);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [sendError, setSendError] = useState('');
   const [sending, setSending] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const messagesEndRef = useRef(null);
+  const chatInstanceId = useId();
   const matchId = match.id;
   const currentUserId = session?.userId;
 
@@ -33,12 +34,20 @@ function MatchChat({ onClose, match, userType, onSendProposal }) {
     let active = true;
     let channel;
 
+    function reportLoadError(step, error) {
+      if (!active) return;
+      console.warn(`[Chat] Error al ${step}`, error);
+      setLoadError({ step, code: error.code });
+    }
+
     async function initialize() {
+      let step = 'verificar la sesión';
       try {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) throw authError || new Error('Missing user');
         if (!active) return;
 
+        step = 'buscar la conversación';
         const findConversation = () => supabase
           .from('conversations').select('id').eq('match_id', matchId).maybeSingle();
 
@@ -48,6 +57,7 @@ function MatchChat({ onClose, match, userType, onSendProposal }) {
 
         let conversation = existing;
         if (!conversation) {
+          step = 'crear la conversación';
           const { data: created, error: createError } = await supabase
             .from('conversations').insert({ match_id: matchId }).select('id').single();
 
@@ -73,31 +83,38 @@ function MatchChat({ onClose, match, userType, onSendProposal }) {
 
           if (!active) return;
           if (error) {
-            setLoadError(true);
+            reportLoadError('cargar los mensajes', error);
             return;
           }
           setMessages((previous) => mergeMessages(previous, data.slice().reverse()));
-          setLoadError(false);
+          setLoadError(null);
           setSession({ conversationId: conversation.id, userId: user.id });
         }
 
-        channel = supabase
-          .channel(`chat-${conversation.id}-${crypto.randomUUID()}`)
-          .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `conversation_id=eq.${conversation.id}`,
-          }, ({ new: message }) => {
-            if (active) setMessages((previous) => mergeMessages(previous, [message]));
-          })
-          .subscribe((status) => {
-            if (status === 'SUBSCRIBED') void loadHistory();
-          });
+        try {
+          channel = supabase.channel(`chat-${conversation.id}-${chatInstanceId}-${attempt}`);
+          channel
+            .on('postgres_changes', {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'messages',
+              filter: `conversation_id=eq.${conversation.id}`,
+            }, ({ new: message }) => {
+              if (active) setMessages((previous) => mergeMessages(previous, [message]));
+            })
+            .subscribe((status) => {
+              if (active && status === 'SUBSCRIBED') {
+                void loadHistory().catch((error) => reportLoadError('cargar los mensajes', error));
+              }
+            });
+        } catch (error) {
+          console.warn('[Chat] No se pudo iniciar el canal en tiempo real', error);
+        }
 
+        step = 'cargar los mensajes';
         await loadHistory();
-      } catch {
-        if (active) setLoadError(true);
+      } catch (error) {
+        reportLoadError(step, error);
       }
     }
 
@@ -106,7 +123,7 @@ function MatchChat({ onClose, match, userType, onSendProposal }) {
       active = false;
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [supabase, matchId, attempt]);
+  }, [supabase, matchId, chatInstanceId, attempt]);
 
   async function handleSendMessage(event) {
     event.preventDefault();
@@ -181,9 +198,9 @@ function MatchChat({ onClose, match, userType, onSendProposal }) {
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#0a0a0a]">
           {loadError ? (
             <div role="alert" className="space-y-2 text-red-300">
-              <p>No se pudo cargar el chat.</p>
+              <p>Error al {loadError.step}{loadError.code ? ` (${loadError.code})` : ''}.</p>
               <button className="text-cyan-400" onClick={() => {
-                setLoadError(false);
+                setLoadError(null);
                 setSession(null);
                 setAttempt((previous) => previous + 1);
               }}>Reintentar</button>
