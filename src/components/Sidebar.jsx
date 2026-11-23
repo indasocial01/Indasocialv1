@@ -39,7 +39,7 @@ const Sidebar = ({ currentPage, userType, onLogout }) => {
       icon: Users 
     },
     { id: 'learnearn', href: '/learnearn', label: 'Learn & Earn', icon: GraduationCap },
-    // { id: 'chat', href: '/chat', label: 'MatchChat', icon: MessageCircle },
+    { id: 'chat', href: '/chat', label: 'Chat', icon: MessageCircle },
     // { id: 'community', href: '/community', label: 'Community', icon: Users },
     { id: 'events', href: '/events', label: 'Eventos', icon: Calendar },
     { id: 'internal-blog', href: '/internal-blog', label: 'Blog', icon: BookOpen },

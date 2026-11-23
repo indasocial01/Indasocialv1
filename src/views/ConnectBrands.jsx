@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import SwipeMatch from '../components/SwipeMatch';
 import ProposalModal from '../components/ProposalModal';
 import MatchChatModal from '../components/MatchChatModal';
+import { loadAcceptedMatches } from '../components/loadAcceptedMatches';
 import ActiveCampaigns from '../components/ActiveCampaigns';
 import { createClient } from '@/utils/supabase/client';
 
@@ -31,37 +32,10 @@ const ConnectBrands = ({ userType }) => {
       if (!user) return;
       setCurrentUserId(user.id);
 
-      // 1. Load accepted matches from database
-      const { data: matchesData, error } = await supabase
-        .from('user_matches')
-        .select(`
-          id,
-          requester:profiles!requester_id(id, full_name, avatar_url, industry, niche, avg_rating, verification_score, user_role),
-          target:profiles!target_id(id, full_name, avatar_url, industry, niche, avg_rating, verification_score, user_role)
-        `)
-        .eq('status', 'accepted')
-        .or(`requester_id.eq.${user.id},target_id.eq.${user.id}`);
-
-      if (!error && matchesData) {
-        const formattedMatches = matchesData.map(m => {
-          const otherProfile = m.requester.id === user.id ? m.target : m.requester;
-
-          return {
-            id: m.id,
-            profile: {
-              id: otherProfile.id,
-              name: otherProfile.full_name || 'User',
-              avatar: otherProfile.avatar_url,
-              logo: otherProfile.full_name ? otherProfile.full_name.charAt(0).toUpperCase() : '👤',
-              industry: otherProfile.industry,
-              niche: otherProfile.niche,
-              avgRating: otherProfile.avg_rating || 0,
-              verificationScore: otherProfile.verification_score || 0,
-              color: otherProfile.user_role === 'creator' ? 'from-purple-500 to-pink-500' : 'from-blue-500 to-cyan-500'
-            }
-          };
-        });
-        setMatches(formattedMatches);
+      try {
+        setMatches(await loadAcceptedMatches(supabase, user.id));
+      } catch (error) {
+        console.error('No se pudieron cargar los matches:', error);
       }
 
       // 2. Load active campaigns count from database
@@ -230,7 +204,7 @@ const ConnectBrands = ({ userType }) => {
                 🎉
               </div>
               <div>
-                <h3 className="text-xl font-bold text-white mb-1">¡It's a Match!</h3>
+                <h3 className="text-xl font-bold text-white mb-1">¡It&apos;s a Match!</h3>
                 <p className="text-green-400">You matched with {latestMatch.name}</p>
                 <button
                   onClick={() => {

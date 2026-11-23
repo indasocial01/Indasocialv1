@@ -4,5 +4,5 @@ import { useAuth } from '@/src/context/AuthContext';
 
 export default function ChatRoute() {
   const { currentUser } = useAuth();
-  return <MatchChat userType={currentUser?.type} />;
+  return <MatchChat key={currentUser?.id} userId={currentUser?.id} userType={currentUser?.type} />;
 }

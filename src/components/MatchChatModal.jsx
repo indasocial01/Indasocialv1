@@ -2,166 +2,154 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, FileText, MessageCircle } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { hasRestrictedChatContent } from './chatModeration';
 
-const MatchChatModal = ({ isOpen, onClose, match, userType, onSendProposal }) => {
-  const supabase = createClient();
+const messageColumns = 'id, sender_id, body, created_at';
+
+function mergeMessages(previous, incoming) {
+  const byId = new Map(previous.map((message) => [message.id, message]));
+  for (const message of incoming) byId.set(message.id, message);
+  return [...byId.values()].sort((left, right) => left.created_at.localeCompare(right.created_at));
+}
+
+function MatchChat({ onClose, match, userType, onSendProposal }) {
+  const [supabase] = useState(createClient);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [conversationId, setConversationId] = useState(null);
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [loading, setLoading] = useState(true);
-
+  const [session, setSession] = useState(null);
+  const [loadError, setLoadError] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const [sending, setSending] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const messagesEndRef = useRef(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const matchId = match.id;
+  const currentUserId = session?.userId;
 
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   useEffect(() => {
-    let subscription;
+    let active = true;
+    let channel;
 
-    const initializeChat = async () => {
-      if (!isOpen || !match) return;
-      setLoading(true);
-
+    async function initialize() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        setCurrentUserId(user.id);
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) throw authError || new Error('Missing user');
+        if (!active) return;
 
-        console.log("[Chat] Inicializando chat para el match:", match.id);
+        const findConversation = () => supabase
+          .from('conversations').select('id').eq('match_id', matchId).maybeSingle();
 
-        // 1. Buscar si ya existe una conversación (USAMOS maybeSingle para evitar el error de Supabase)
-        let currentConvId = null;
-        const { data: existingConv, error: fetchError } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('match_id', match.id)
-          .maybeSingle();
+        const { data: existing, error: lookupError } = await findConversation();
+        if (lookupError) throw lookupError;
+        if (!active) return;
 
-        if (existingConv) {
-          console.log("[Chat] Conversación existente encontrada:", existingConv.id);
-          currentConvId = existingConv.id;
-        } else {
-          console.log("[Chat] No existe conversación. Creando una nueva...");
-          const { data: newConv, error: convError } = await supabase
-            .from('conversations')
-            .insert({ match_id: match.id })
-            .select('id')
-            .single();
+        let conversation = existing;
+        if (!conversation) {
+          const { data: created, error: createError } = await supabase
+            .from('conversations').insert({ match_id: matchId }).select('id').single();
 
-          if (convError) {
-            console.error("[Chat] Error crítico al crear conversación:", convError);
-          } else if (newConv) {
-            console.log("[Chat] Conversación creada con éxito:", newConv.id);
-            currentConvId = newConv.id;
+          if (createError?.code === '23505') {
+            const { data: concurrent, error: retryError } = await findConversation();
+            if (retryError || !concurrent) throw retryError || createError;
+            conversation = concurrent;
+          } else {
+            if (createError) throw createError;
+            conversation = created;
           }
         }
+        if (!active) return;
 
-        setConversationId(currentConvId);
-
-        // 2. Cargar historial y suscribir a tiempo real
-        if (currentConvId) {
-          const { data: history } = await supabase
+        async function loadHistory() {
+          const { data, error } = await supabase
             .from('messages')
-            .select('*')
-            .eq('conversation_id', currentConvId)
-            .order('created_at', { ascending: true });
+            .select(messageColumns)
+            .eq('conversation_id', conversation.id)
+            .order('created_at', { ascending: false })
+            .order('id', { ascending: false })
+            .limit(100);
 
-          if (history) setMessages(history);
-
-          subscription = supabase
-            .channel(`chat-${currentConvId}`)
-            .on(
-              'postgres_changes',
-              {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'messages',
-                filter: `conversation_id=eq.${currentConvId}`
-              },
-              (payload) => {
-                setMessages((prev) => {
-                  const exists = prev.find(m => m.id === payload.new.id);
-                  if (exists) return prev;
-                  return [...prev, payload.new];
-                });
-              }
-            )
-            .subscribe();
+          if (!active) return;
+          if (error) {
+            setLoadError(true);
+            return;
+          }
+          setMessages((previous) => mergeMessages(previous, data.slice().reverse()));
+          setLoadError(false);
+          setSession({ conversationId: conversation.id, userId: user.id });
         }
-      } catch (error) {
-        console.error("Error al inicializar el chat:", error);
-      } finally {
-        setLoading(false);
+
+        channel = supabase
+          .channel(`chat-${conversation.id}-${crypto.randomUUID()}`)
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `conversation_id=eq.${conversation.id}`,
+          }, ({ new: message }) => {
+            if (active) setMessages((previous) => mergeMessages(previous, [message]));
+          })
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') void loadHistory();
+          });
+
+        await loadHistory();
+      } catch {
+        if (active) setLoadError(true);
       }
-    };
+    }
 
-    initializeChat();
-
+    void initialize();
     return () => {
-      if (subscription) {
-        supabase.removeChannel(subscription);
-      }
+      active = false;
+      if (channel) void supabase.removeChannel(channel);
     };
-  }, [isOpen, match]);
+  }, [supabase, matchId, attempt]);
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
+  async function handleSendMessage(event) {
+    event.preventDefault();
+    const body = newMessage.trim();
+    if (!body || !session || sending) return;
 
-    if (!newMessage.trim()) return;
-
-    if (!conversationId) {
-      alert("Error: El chat no está conectado a la base de datos.");
-      console.error("[Chat] Faltó el conversationId");
+    if (hasRestrictedChatContent(body)) {
+      setSendError('El mensaje incluye datos de contacto o un enlace restringido. Edítalo para enviarlo.');
       return;
     }
 
-    if (!currentUserId) return;
+    setSending(true);
+    setSendError('');
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({ conversation_id: session.conversationId, sender_id: currentUserId, body })
+        .select(messageColumns)
+        .single();
 
-    const messageText = newMessage.trim();
-    setNewMessage(''); // Limpiamos el input
+      if (error) {
+        setSendError('No se pudo enviar el mensaje. Inténtalo de nuevo.');
+        return;
+      }
 
-    console.log("[Chat] Guardando mensaje en BD:", messageText);
-
-    // Guardamos en la base de datos
-    const { data, error } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: conversationId,
-        sender_id: currentUserId,
-        body: messageText
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("[Chat] ERROR al enviar mensaje:", error);
-    } else if (data) {
-      // Lo dibujamos en pantalla
-      setMessages(prev => {
-        const exists = prev.find(m => m.id === data.id);
-        if (exists) return prev;
-        return [...prev, data];
-      });
+      setMessages((previous) => mergeMessages(previous, [data]));
+      setNewMessage('');
+    } catch {
+      setSendError('No se pudo enviar el mensaje. Inténtalo de nuevo.');
+    } finally {
+      setSending(false);
     }
-  };
-
-  if (!isOpen || !match) return null;
+  }
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-gray-900 border border-cyan-500/30 rounded-3xl w-full max-w-2xl h-[600px] flex flex-col overflow-hidden shadow-2xl shadow-cyan-500/10">
+      <div role="dialog" aria-modal="true" aria-label={`Chat con ${match.profile.name}`} className="bg-gray-900 border border-cyan-500/30 rounded-3xl w-full max-w-2xl h-[600px] max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden shadow-2xl shadow-cyan-500/10">
 
         {/* Header del Chat */}
         <div className="p-4 border-b border-gray-800 bg-gray-900/50 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {match.profile.avatar.includes('http') ? (
-              <img src={match.profile.avatar} alt="Avatar" className="w-12 h-12 rounded-full object-cover border border-cyan-500/50" />
+            {match.profile.avatar?.startsWith('http') ? (
+              <img src={match.profile.avatar} alt="" className="w-12 h-12 rounded-full object-cover border border-cyan-500/50" />
             ) : (
               <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${match.profile.color} flex items-center justify-center text-xl font-bold`}>
                 {match.profile.logo || match.profile.name.charAt(0)}
@@ -183,7 +171,7 @@ const MatchChatModal = ({ isOpen, onClose, match, userType, onSendProposal }) =>
                 <span className="hidden sm:inline">Enviar Propuesta</span>
               </button>
             )}
-            <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-all">
+            <button type="button" aria-label="Cerrar chat" onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-all">
               <X size={24} />
             </button>
           </div>
@@ -191,7 +179,16 @@ const MatchChatModal = ({ isOpen, onClose, match, userType, onSendProposal }) =>
 
         {/* Área de Mensajes */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#0a0a0a]">
-          {loading ? (
+          {loadError ? (
+            <div role="alert" className="space-y-2 text-red-300">
+              <p>No se pudo cargar el chat.</p>
+              <button className="text-cyan-400" onClick={() => {
+                setLoadError(false);
+                setSession(null);
+                setAttempt((previous) => previous + 1);
+              }}>Reintentar</button>
+            </div>
+          ) : !session ? (
             <div className="flex items-center justify-center h-full">
               <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
@@ -226,17 +223,23 @@ const MatchChatModal = ({ isOpen, onClose, match, userType, onSendProposal }) =>
 
         {/* Input de Mensaje */}
         <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-800 bg-gray-900">
+          <p className="mb-2 text-xs text-gray-400">Se bloquean teléfonos, correos, usuarios con @ y enlaces de WhatsApp e Instagram.</p>
+          {sendError && <p role="alert" className="mb-2 text-sm text-red-300">{sendError}</p>}
           <div className="relative flex items-center">
             <input
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Escribe un mensaje..."
+              aria-label="Mensaje"
+              maxLength={2000}
+              readOnly={sending}
               className="w-full bg-gray-800 border border-gray-700 text-white px-6 py-4 rounded-full focus:outline-none focus:border-cyan-500 pr-14"
             />
             <button
               type="submit"
-              disabled={!newMessage.trim() || !conversationId}
+              aria-label="Enviar mensaje"
+              disabled={!newMessage.trim() || !session || loadError || sending}
               className="absolute right-2 w-10 h-10 bg-cyan-500 text-white rounded-full flex items-center justify-center hover:bg-cyan-600 disabled:opacity-50 disabled:hover:bg-cyan-500 transition-all"
             >
               <Send size={18} className="ml-1" />
@@ -247,6 +250,9 @@ const MatchChatModal = ({ isOpen, onClose, match, userType, onSendProposal }) =>
       </div>
     </div>
   );
-};
+}
 
-export default MatchChatModal;
+export default function MatchChatModal({ isOpen, match, ...props }) {
+  if (!isOpen || !match) return null;
+  return <MatchChat key={match.id} match={match} {...props} />;
+}
